@@ -6,7 +6,7 @@ var handler = async (m, { conn, usedPrefix, command }) => {
 
 conn.hdr = conn.hdr ? conn.hdr : {}
 if (m.sender in conn.hdr)
-return conn.reply(m.chat, `*🏴 Todavía hay una solicitud en proceso, sea paciente*`, m, fake, )
+return conn.reply(m.chat, `*🏴 Todavía hay una solicitud en proceso, sea paciente*`, m, rcanal, )
 
 let q = m.quoted ? m.quoted : m
 let mime = (q.msg || q).mimetype || q.mediaType || ""
