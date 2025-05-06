@@ -1,85 +1,77 @@
+/* 
+- HD UPSCALE 🎩
+- Made By WillZek 
+- https://github.com/WillZek
+*/
 
-import FormData from 'form-data'
-import Jimp from 'jimp'
-  
-var handler = async (m, { conn, usedPrefix, command }) => {
+import fs from "fs"
+import path from "path"
+import fetch from "node-fetch"
+import Jimp from "jimp"
+import FormData from "form-data"
+import { fileURLToPath } from "url"
 
-conn.hdr = conn.hdr ? conn.hdr : {}
-if (m.sender in conn.hdr)
-return conn.reply(m.chat, `*🏴 Todavía hay una solicitud en proceso, sea paciente*`, m, rcanal, )
+const __filename = fileURLToPath(import.meta.url)
+const __dirname = path.dirname(__filename)
 
-let q = m.quoted ? m.quoted : m
-let mime = (q.msg || q).mimetype || q.mediaType || ""
-if (!mime)
+const handler = async (m, { conn }) => {
+  try {
+    const q = m.quoted || m
+    const mime = (q.msg || q).mimetype || q.mediaType || ""
 
-return conn.reply(m.chat, `*🎌 Etiquete a una foto*`, m, fake, )
-if (!/image\/(jpe?g|png|mp4)/.test(mime))
+    if (!/^image\/(jpe?g|png)$/.test(mime)) {
+      return m.reply('🪐 Responde a una imagen JPG o PNG.')
+    }
 
-return conn.reply(m.chat, `*🚩 Mímica ${mime} no soportada*`, m, rcanal, )
-else conn.hdr[m.sender] = true
+    await conn.sendMessage(m.chat, { text: `⏳ Mejorando Su Imagen Espere Un Momento.\n> ${dev}` }, { quoted: m })
 
-conn.reply(m.chat, '⏰ Espere un momento', m, fake, )
-let img = await q.download?.()
+    const buffer = await q.download()
+    const image = await Jimp.read(buffer)
+    image.resize(800, Jimp.AUTO)
 
-let error
-try {
-const This = await processing(img, "enlace")
-conn.sendFile(m.chat, This, '', '🧃 *Toma tu foto*\n\n' + cred.toString('utf-8'), m)
-} catch (er) {
-error = true
-} finally {
-if (error) {
-return conn.reply(m.chat, `*🚩 Ocurrió un fallo*`, m, fake, )
+    const tmp = path.join(__dirname, `tmp_${Date.now()}.jpg`)
+    await image.writeAsync(tmp)
+
+    const url = await uploadToUguu(tmp)
+    if (!url) throw new Error('Lo Sentimos No Se Procesó Su Imagen 😿')
+
+    const enhanced = await upscaleImage(url)
+    await conn.sendFile(m.chat, enhanced, "hd.jpg", "", m)
+    await conn.sendMessage(m.chat, { text: "✅ Imagen mejorada." }, { quoted: m })
+
+  } catch (err) {
+    conn.reply(m.chat, `*Error:* ${err.message}\n > Viva El Porno🥵.`, m)
+  }
 }
-delete conn.hdr[m.sender]
-}}
-  
-handler.help = ['hd']
-handler.tags = ['ai']
-handler.command = /^(hd)$/i
 
-handler.register = true
-handler.limit = true
-  
+handler.help = ['upscale']
+handler.tags = ['tools']
+handler.command = ['hd', 'remini', 'upscale']
+
 export default handler
-  
-async function processing(urlPath, method) {
-return new Promise(async (resolve, reject) => {
-let Methods = ['enhance', 'recolor', 'dehaze']
-Methods.includes(method) ? (method = method) : (method = Methods[0])
-let buffer,
-Form = new FormData(),
-scheme = 'https' + '://' + 'inferenceengine' + '.vyro' + '.ai/' + method
-Form.append('model_version', 1, {
-'Content-Transfer-Encoding': 'binary',
-contentType: 'multipart/form-data; charset=uttf-8',
-}) 
-Form.append('image', Buffer.from(urlPath), {
-filename: 'enhance_image_body.jpg',
-contentType: 'image/jpeg',
-})
-Form.submit(
-{
-url: scheme,
-host: 'inferenceengine' + '.vyro' + '.ai',
-path: '/' + method,
-protocol: 'https:',
-headers: {
-'User-Agent': 'okhttp/4.9.3',
-Connection: 'Keep-Alive',
-'Accept-Encoding': 'gzip',
-},
-}, 
-function (err, res) {
-if (err) reject()
-let data = []
-res
-.on('data', function (chunk, resp) {
-data.push(chunk)
-})
-.on('end', () => {
-resolve(Buffer.concat(data))
-})
-res.on('error', (e) => {
-reject()
-})})})}
+
+async function uploadToUguu(filePath) {
+  const form = new FormData()
+  form.append("files[]", fs.createReadStream(filePath))
+
+  try {
+    const res = await fetch("https://uguu.se/upload.php", {
+      method: "POST",
+      headers: form.getHeaders(),
+      body: form
+    })
+
+    const json = await res.json()
+    await fs.promises.unlink(filePath)
+    return json.files?.[0]?.url
+  } catch {
+    await fs.promises.unlink(filePath)
+    return null
+  }
+}
+
+async function upscaleImage(url) {
+  const res = await fetch(`https://api.siputzx.my.id/api/iloveimg/upscale?image=${encodeURIComponent(url)}`)
+  if (!res.ok) throw new Error("No se pudo mejorar la imagen.")
+  return await res.buffer()
+}
