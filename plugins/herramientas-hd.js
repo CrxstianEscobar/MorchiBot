@@ -15,7 +15,7 @@ if (!mime)
 return conn.reply(m.chat, `*🎌 Etiquete a una foto*`, m, fake, )
 if (!/image\/(jpe?g|png|mp4)/.test(mime))
 
-return conn.reply(m.chat, `*🚩 Mímica ${mime} no soportada*`, m, fake, )
+return conn.reply(m.chat, `*🚩 Mímica ${mime} no soportada*`, m, rcanal, )
 else conn.hdr[m.sender] = true
 
 conn.reply(m.chat, '⏰ Espere un momento', m, fake, )
