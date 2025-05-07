@@ -476,7 +476,7 @@ global.db.data.users[m.sender].spam = new Date * 1
        }
      function pickRandom(list) { return list[Math.floor(Math.random() * list.length)]}
        }}
-
+/*
 export async function deleteUpdate(message) {
 try {
 const { fromMe, id, participant } = message
@@ -497,7 +497,31 @@ await this.sendMessage(msg.chat, {text: antideleteMessage, mentions: [participan
 this.copyNForward(msg.chat, msg).catch(e => console.log(e, msg))
 } catch (e) {
 console.error(e)
-}}
+}}*/
+export async function deleteUpdate(message) {
+    try {
+        const { fromMe, id, participant } = message
+        if (fromMe)
+            return
+        let msg = conn.serializeM(conn.loadMessage(id))
+        if (!msg)
+            return
+        let chat = global.db.data.chats[id] || {}
+    
+        if (chat.delete) return
+        
+        await conn.reply(msg.chat, `
+Terdeteksi @${participant.split`@`[0]} telah menghapus pesan barusan
+Untuk mematikan fitur ini, ketik
+*.disable antidelete*
+`.trim(), msg, {
+            mentions: [participant]
+        })
+        conn.copyNForward(msg.chat, msg).catch(e => console.log(e, msg))
+    } catch (e) {
+        console.error(e)
+    }
+}
 
 global.dfail = (type, m, conn) => {
 
