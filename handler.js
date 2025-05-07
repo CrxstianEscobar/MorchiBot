@@ -476,7 +476,7 @@ global.db.data.users[m.sender].spam = new Date * 1
        }
      function pickRandom(list) { return list[Math.floor(Math.random() * list.length)]}
        }}
-/*
+
 export async function deleteUpdate(message) {
 try {
 const { fromMe, id, participant } = message
@@ -497,38 +497,7 @@ await this.sendMessage(msg.chat, {text: antideleteMessage, mentions: [participan
 this.copyNForward(msg.chat, msg).catch(e => console.log(e, msg))
 } catch (e) {
 console.error(e)
-}}*/
-export async function deleteUpdate(message, conn) {
-    try {
-        const { fromMe, id, participant } = message
-        if (fromMe) return
-
-        const msg = conn.serializeM(conn.loadMessage(id))
-        if (!msg) return
-
-        const chat = global.db.data.chats[msg.chat] || {}
-        if (!chat?.delete) return
-        if (!msg?.isGroup) return
-
-        const antideleteMessage = `
-╭•┈•〘❌ 𝗔𝗡𝗧𝗜 𝗗𝗘𝗟𝗘𝗧𝗘 ❌〙•┈• ◊
-│❒ 𝗨𝗦𝗨𝗔𝗥𝗜𝗢:
-│• @${participant.split`@`[0]}
-│
-│❒ 𝗔𝗰𝗮𝗯𝗮 𝗱𝗲 𝗲𝗹𝗶𝗺𝗶𝗻𝗮𝗿 𝘂𝗻 𝗺𝗲𝗻𝘀𝗮𝗷𝗲
-│𝗿𝗲𝗲𝗻𝘃𝗶𝗮𝗻𝗱𝗼... ⏱️
-╰•┈•〘❌ 𝗔𝗡𝗧𝗜 𝗗𝗘𝗟𝗘𝗧𝗘 ❌〙•┈• ◊`.trim()
-
-        await conn.reply(msg.chat, antideleteMessage, msg, {
-            mentions: [participant]
-        })
-
-        conn.copyNForward(msg.chat, msg).catch(e => console.log(e, msg))
-    } catch (e) {
-        console.error(e)
-    }
-}
-
+}}
 
 global.dfail = (type, m, conn) => {
 
