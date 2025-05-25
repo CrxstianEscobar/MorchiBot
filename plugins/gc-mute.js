@@ -1,51 +1,69 @@
-import fetch from 'node-fetch';
+import fs from 'fs';
 
-const handler = async (m, { conn, command, text, isAdmin, participants }) => {
-    const userId = m.mentionedJid && m.mentionedJid[0] 
-                    ? m.mentionedJid[0] 
-                    : m.quoted 
-                        ? m.quoted.sender 
-                        : text;
+let mutedUsers = new Set();
 
-    if (!isAdmin) throw '🙀 *Solo un administrador puede ejecutar este comando*';
-    if (!userId) throw '🐈 *Menciona a la persona que deseas mutear o desmutear*';
+try {
+const data = fs.readFileSync('./muted-users.json', 'utf-8');
+mutedUsers = new Set(JSON.parse(data));
+} catch (e) {
+mutedUsers = new Set();
+}
 
-    const user = global.db.data.users[userId] || {};
-    user.mute = user.mute || false;
+let handler = async (m, { conn, usedPrefix, command, isAdmin, isBotAdmin }) => {
 
-    if (command === 'mute') {
-        if (user.mute) throw '🐈 *Este usuario ya ha sido muteado*';
-        user.mute = true;
-        await conn.reply(m.chat, '🐈 *Este usuario ha sido muteado y sus mensajes serán eliminados*', m);
-    }
+if (!isBotAdmin) return conn.reply(m.chat, `${emojis} El bot necesita ser administrador.`, m);
+if (!isAdmin) return conn.reply(m.chat, `${emojis} Solo los administradores pueden usar este comando.`, m);
 
-    if (command === 'unmute') {
-        if (!user.mute) throw '🐈 *Este usuario no está muteado*';
-        user.mute = false;
-        await conn.reply(m.chat, '🐈 *Este usuario ha sido desmuteado*', m);
-    }
+let user;
+if (m.quoted) {
+  user = m.quoted.sender;
+} else if (m.mentionedJid && m.mentionedJid.length) {
+  user = m.mentionedJid[0];
+} else {
+  return conn.reply(m.chat, `${emojis} Responde al mensaje *o menciona* al usuario que quieres mutear.`, m);
+}
+/*
+const ownerBot = global.owner[0][0] + '@s.whatsapp.net';
+if (user === ownerBot) {
+return conn.reply(m.chat, `${emojis} No puedo mutear al propietario del bot.`, m);
+}*/
+const ownerBot = global.owner.map(owner => owner[0] + '@s.whatsapp.net');
 
-    // Guardar el estado en la base de datos
-    global.db.data.users[userId] = user;
+if (ownerBot.includes(user)) {
+  return conn.reply(m.chat, `${emojis} No puedo mutear al propietario del bot.`, m);
+}
+
+if (command === "mute") {
+mutedUsers.add(user);
+guardarMuteos();
+conn.reply(m.chat, `🔇 *Usuario muteado:* @${user.split('@')[0]}`, m, { mentions: [user] });
+} else if (command === "unmute") {
+mutedUsers.delete(user);
+guardarMuteos();
+conn.reply(m.chat, `🔊 *Usuario desmuteado:* @${user.split('@')[0]}`, m, { mentions: [user] });
+}
 };
 
-// Escuchar y eliminar los mensajes de usuarios muteados en el mismo handler
+// Función para guardar los usuarios muteados en archivo
+function guardarMuteos() {
+fs.writeFileSync('./muted-users.json', JSON.stringify([...mutedUsers]));
+}
+
 handler.before = async (m, { conn }) => {
-    const sender = m.sender;
-    const isMuted = global.db.data.users[sender]?.mute;
-
-    if (isMuted && !m.key.fromMe) {
-        try {
-            await conn.sendMessage(m.chat, { delete: m.key });
-        } catch (e) {
-            console.error('Error al eliminar mensaje:', e);
-        }
-    }
+if (mutedUsers.has(m.sender)) {
+try {
+await conn.sendMessage(m.chat, { delete: m.key });
+} catch (e) {
+console.error('Error eliminando mensaje de usuario muteado:', e);
+}
+}
 };
 
-handler.command = ['mute', 'unmute'];
+handler.help = ['mute', 'unmute'];
+handler.tags = ['grupo'];
+handler.command = /^(mute|unmute)$/i;
+handler.group = true;
 handler.admin = true;
 handler.botAdmin = true;
-handler.rowner = true;
 
 export default handler;
