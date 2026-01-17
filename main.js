@@ -44,7 +44,7 @@ global.timestamp = { start: new Date }
 const __dirname = global.__dirname(import.meta.url);
 global.opts = new Object(yargs(process.argv.slice(2)).exitProcess(false).parse());
 global.prefix = new RegExp('^[#/.]')
-global.db = new Low(/https?:\/\//.test(opts['db'] || '') ? new cloudDBAdapter(opts['db']) : new JSONFile('media/database/database.json'))
+global.db = new Low(/https?:\/\//.test(opts['db'] || '') ? new cloudDBAdapter(opts['db']) : new JSONFile('./database.json'))
 global.DATABASE = global.db; 
 global.loadDatabase = async function loadDatabase() {
 if (global.db.READ) {
@@ -78,45 +78,14 @@ console.log('Conexiones ya inicializadas...');
 global.conns = [];
 }
 
-/* ------------------------------------------------*/
-
-global.chatgpt = new Low(new JSONFile(path.join(__dirname, '/db/chatgpt.json')));
-global.loadChatgptDB = async function loadChatgptDB() {
-if (global.chatgpt.READ) {
-return new Promise((resolve) =>
-setInterval(async function() {
-if (!global.chatgpt.READ) {
-clearInterval(this);
-resolve( global.chatgpt.data === null ? global.loadChatgptDB() : global.chatgpt.data );
-}}, 1 * 1000));
-}
-if (global.chatgpt.data !== null) return;
-global.chatgpt.READ = true;
-await global.chatgpt.read().catch(console.error);
-global.chatgpt.READ = null;
-global.chatgpt.data = {
-users: {},
-...(global.chatgpt.data || {}),
-};
-global.chatgpt.chain = lodash.chain(global.chatgpt.data);
-};
-loadChatgptDB();
-
 global.creds = 'creds.json'
-global.authFile = 'MorchiSession'
-global.authFileJB  = 'MorchiJadiBot'
-/*global.rutaBot = join(__dirname, authFile)
-global.rutaJadiBot = join(__dirname, authFileJB)
-
-if (!fs.existsSync(rutaJadiBot)) {
-fs.mkdirSync(rutaJadiBot)
-}
-*/
+global.authFile = 'JotaSession'
+global.authFileJB  = 'JadiBots'
 const {state, saveState, saveCreds} = await useMultiFileAuthState(global.authFile)
 const msgRetryCounterMap = (MessageRetryMap) => { }
 const msgRetryCounterCache = new NodeCache()
 const {version} = await fetchLatestBaileysVersion()
-let phoneNumber = global.botNumberCode
+let phoneNumber = global.botNumber
 const methodCodeQR = process.argv.includes("qr")
 const methodCode = !!phoneNumber || process.argv.includes("code")
 const MethodMobile = process.argv.includes("mobile")
@@ -139,7 +108,7 @@ let opcion
 if (methodCodeQR) {
 opcion = '1'
 }
-if (!methodCodeQR && !methodCode && !fs.existsSync(`./${authFile}/creds.json`)) {
+if (!methodCodeQR && !methodCode && !fs.existsSync(`./${global.authFile}/${global.creds}`)) {
 do {
 let lineM = '┄╴───┈┈┈┈──┈┈┈┈───┈╴'
 opcion = await question(`╭${lineM}  
@@ -157,8 +126,8 @@ opcion = await question(`╭${lineM}
 │
 ╰${lineM}\n${chalk.bold.magentaBright('---> ')}`)
 if (!/^[1-2]$/.test(opcion)) {
-console.log(chalk.bold.redBright(`NO SE PERMITE NÚMEROS QUE NO SEAN ${chalk.bold.greenBright("1")} O ${chalk.bold.greenBright("2")}, TAMPOCO LETRAS O SÍMBOLOS ESPECIALES.\n${chalk.bold.yellowBright("CONSEJO: COPIE EL NÚMERO DE LA OPCIÓN Y PÉGUELO EN LA CONSOLA.")}`))
-}} while (opcion !== '1' && opcion !== '2' || fs.existsSync(`./${authFile}/creds.json`))
+console.log(chalk.bold.redBright(`NO SE PERMITE NÚMEROS QUE NO SEAN ${chalk.bold.blueBright("1")} O ${chalk.bold.blueBright("2")}, TAMPOCO LETRAS O SÍMBOLOS ESPECIALES.\n${chalk.bold.yellowBright("CONSEJO: COPIE EL NÚMERO DE LA OPCIÓN Y PÉGUELO EN LA CONSOLA.")}`))
+}} while (opcion !== '1' && opcion !== '2' || fs.existsSync(`./${global.authFile}/${global.creds}`))
 }
 
 const filterStrings = [
@@ -176,7 +145,11 @@ const connectionOptions = {
 logger: pino({ level: 'silent' }),
 printQRInTerminal: opcion == '1' ? true : methodCodeQR ? true : false,
 mobile: MethodMobile, 
-browser: opcion == '1' ? ['MorchiBot-MD', 'Edge', '20.0.04'] : methodCodeQR ? ['MorchiBot-MD', 'Edge', '20.0.04'] : ["Ubuntu", "Chrome", "20.0.04"],
+
+browser: (opcion == '1' || methodCodeQR) 
+  ? [global.namebot, 'Edge', '20.0.04'] 
+  : ['Ubuntu', 'Chrome', '20.0.04'],
+
 auth: {
 creds: state.creds,
 keys: makeCacheableSignalKeyStore(state.keys, Pino({ level: "fatal" }).child({ level: "fatal" })),
@@ -192,11 +165,10 @@ return msg?.message || ""
 msgRetryCounterCache, // Resolver mensajes en espera
 msgRetryCounterMap, // Determinar si se debe volver a intentar enviar un mensaje o no
 defaultQueryTimeoutMs: undefined,
-//version: [2, 3000, 1023223821],
-version: version,
+version: [2, 3000, 1025190524],
 }
 global.conn = makeWASocket(connectionOptions)
-if (!fs.existsSync(`./${authFile}/creds.json`)) {
+if (!fs.existsSync(`./${global.authFile}/${global.creds}`)) {
 if (opcion === '2' || methodCode) {
 opcion = '2'
 if (!conn.authState.creds.registered) {
@@ -205,7 +177,7 @@ if (!!phoneNumber) {
 addNumber = phoneNumber.replace(/[^0-9]/g, '')
 } else {
 do {
-phoneNumber = await question(chalk.bgBlack(chalk.bold.greenBright(`Por favor, Ingrese el número de WhatsApp.\n${chalk.bold.yellowBright("CONSEJO: Copie el número de WhatsApp y péguelo en la consola.")}\n${chalk.bold.yellowBright("Ejemplo: +51927238856")}\n${chalk.bold.magentaBright('---> ')}`)))
+phoneNumber = await question(chalk.bgBlack(chalk.bold.redBright(`Por favor, Ingresa el número de WhatsApp\n${chalk.bold.blueBright("Copia el número de WhatsApp y péguelo en la consola.")}\n${chalk.bold.blueBright("Ejemplo: +56940074825")}\n${chalk.bold.magentaBright('---> ')}`)))
 phoneNumber = phoneNumber.replace(/\D/g,'')
 if (!phoneNumber.startsWith('+')) {
 phoneNumber = `+${phoneNumber}`
@@ -227,7 +199,7 @@ conn.well = false
 if (!opts['test']) {
 if (global.db) setInterval(async () => {
 if (global.db.data) await global.db.write()
-if (opts['autocleartmp'] && (global.support || {}).find) (tmp = [os.tmpdir(), 'tmp', "MorchiJadiBot"], tmp.forEach(filename => cp.spawn('find', [filename, '-amin', '2', '-type', 'f', '-delete'])))}, 30 * 1000)}
+if (opts['autocleartmp'] && (global.support || {}).find) (tmp = [os.tmpdir(), 'tmp', global.authFileJB], tmp.forEach(filename => cp.spawn('find', [filename, '-amin', '2', '-type', 'f', '-delete'])))}, 30 * 1000)}
 if (opts['server']) (await import('./lib/server.js')).default(global.conn, PORT)
 async function getMessage(key) {
 if (store) {
@@ -247,10 +219,10 @@ global.timestamp.connect = new Date
 if (global.db.data == null) loadDatabase()
 if (update.qr != 0 && update.qr != undefined || methodCodeQR) {
 if (opcion == '1' || methodCodeQR) {
-console.log(chalk.bold.yellow(`\n💚 ESCANEA EL CÓDIGO QR EXPIRA EN 45 SEGUNDOS`))}
+console.log(chalk.bold.green(`\n🌿 ESCANEA EL CÓDIGO QR EXPIRA EN 45 SEGUNDOS`))}
 }
 if (connection == 'open') {
-console.log(chalk.bold.greenBright(`\n❒⸺⸺⸺⸺【• CONECTADO •】⸺⸺⸺⸺❒\n│\n│ ✅ Se ha conectado exitosamente.\n│\n❒⸺⸺⸺⸺【• CONECTADO •】⸺⸺⸺⸺❒`))}
+console.log(chalk.bold.greenBright(`\n❒⸺⸺⸺⸺【• CONECTADO •】⸺⸺⸺⸺❒\n│\n│ ✅ Se ha conectado exitosamente.\n│\n❒⸺⸺⸺⸺【•${global.textmain} •】⸺⸺⸺⸺❒`))}
 let reason = new Boom(lastDisconnect?.error)?.output?.statusCode
 if (connection === 'close') {
 if (reason === DisconnectReason.badSession) {
@@ -264,7 +236,7 @@ await global.reloadHandler(true).catch(console.error)
 } else if (reason === DisconnectReason.connectionReplaced) {
 console.log(chalk.bold.yellowBright("╭┄┄┄┄┄┄┄┄┄┄┄┄┄┄ • • • ┄┄┄┄┄┄┄┄┄┄┄┄┄┄ ✗\n┆ ⚠️ CONEXIÓN REEMPLAZADA, SE HA ABIERTO OTRA NUEVA SESION, POR FAVOR, CIERRA LA SESIÓN ACTUAL PRIMERO.\n╰┄┄┄┄┄┄┄┄┄┄┄┄┄┄ • • • ┄┄┄┄┄┄┄┄┄┄┄┄┄┄ ✗"))
 } else if (reason === DisconnectReason.loggedOut) {
-console.log(chalk.bold.redBright(`\n⚠️ SIN CONEXIÓN, BORRE LA CARPETA ${global.authFile} Y ESCANEA EL CÓDIGO QR ⚠️`))
+console.log(chalk.bold.redBright(`\n⚠️ SIN CONEXIÓN, BORRE LA CARPETA ${authFile} Y ESCANEA EL CÓDIGO QR ⚠️`))
 await global.reloadHandler(true).catch(console.error)
 } else if (reason === DisconnectReason.restartRequired) {
 console.log(chalk.bold.cyanBright(`\n╭┄┄┄┄┄┄┄┄┄┄┄┄┄┄ • • • ┄┄┄┄┄┄┄┄┄┄┄┄┄┄♡\n┆ 🤍 CONECTANDO AL SERVIDOR...\n╰┄┄┄┄┄┄┄┄┄┄┄┄┄┄ • • • ┄┄┄┄┄┄┄┄┄┄┄┄┄┄♡`))
@@ -279,9 +251,9 @@ console.log(chalk.bold.redBright(`\n⚠️❗ RAZON DE DESCONEXIÓN DESCONOCIDA:
 process.on('uncaughtException', console.error);
 
 async function connectSubBots() {
-const subBotDirectory = './MorchiJadiBot';
+const subBotDirectory = `./${authFileJB}`;
 if (!existsSync(subBotDirectory)) {
-console.log('🤍 Morchi Bot MD no tiene Sub-Bots vinculados.');
+console.log(`☕ ${global.textmain2} no tiene Sub-Bots vinculados.`);
 return;
 }
 
@@ -291,24 +263,24 @@ statSync(join(subBotDirectory, file)).isDirectory()
 
 const botPromises = subBotFolders.map(async folder => {
 const authFile = join(subBotDirectory, folder);
-if (existsSync(join(authFile, 'creds.json'))) {
+if (existsSync(join(authFile, global.creds))) {
 return await connectionUpdate(authFile);
 }
 });
 
 const bots = await Promise.all(botPromises);
 global.conns = bots.filter(Boolean);
-console.log(chalk.bold.greenBright(`🤍 Todos los Sub-Bots se conectaron con éxito.`))
+console.log(chalk.bold.greenBright(`🌷 Todos los Sub-Bots se conectaron con éxito.`))
 }
 
 (async () => {
 global.conns = [];
 
-const mainBotAuthFile = 'MorchiSession';
+const mainBotAuthFile = global.authFile;
 try {
 const mainBot = await connectionUpdate(mainBotAuthFile);
 global.conns.push(mainBot);
-console.log(chalk.bold.greenBright(`🤍 Morchi Bot MD conectado correctamente.`))
+console.log(chalk.bold.greenBright(`🟢 ${global.textmain2} conectado correctamente.`))
 
 await connectSubBots();
 } catch (error) {
@@ -325,38 +297,36 @@ if (Object.keys(Handler || {}).length) handler = Handler;
 } catch (e) {
 console.error(e);
 }
+
 if (restatConn) {
-const oldChats = global.conn.chats;
-try {
-global.conn.ws.close();
-} catch { }
-conn.ev.removeAllListeners();
-global.conn = makeWASocket(connectionOptions, {chats: oldChats});
-isInit = true;
+  const oldChats = global.conn.chats;
+  try {
+    global.conn.ws.close();
+  } catch { }
+
+  conn.ev.removeAllListeners();
+  global.conn = makeWASocket(connectionOptions, { chats: oldChats });
+  isInit = true;
 }
+
 if (!isInit) {
-conn.ev.off('messages.upsert', conn.handler)
-conn.ev.off('connection.update', conn.connectionUpdate)
-conn.ev.off('creds.update', conn.credsUpdate)
+  conn.ev.off('messages.upsert', conn.handler);
+  conn.ev.off('connection.update', conn.connectionUpdate);
+  conn.ev.off('creds.update', conn.credsUpdate);
 }
 
-conn.handler = handler.handler.bind(global.conn)
-conn.connectionUpdate = connectionUpdate.bind(global.conn)
-conn.credsUpdate = saveCreds.bind(global.conn, true)
+conn.handler = handler.handler.bind(global.conn);
+conn.connectionUpdate = connectionUpdate.bind(global.conn);
+conn.credsUpdate = saveCreds.bind(global.conn, true);
 
-const currentDateTime = new Date()
-const messageDateTime = new Date(conn.ev)
-if (currentDateTime >= messageDateTime) {
-const chats = Object.entries(conn.chats).filter(([jid, chat]) => !jid.endsWith('@g.us') && chat.isChats).map((v) => v[0])
-} else {
-const chats = Object.entries(conn.chats).filter(([jid, chat]) => !jid.endsWith('@g.us') && chat.isChats).map((v) => v[0])}
+// Registrar los eventos
+conn.ev.on('messages.upsert', conn.handler);
+conn.ev.on('connection.update', conn.connectionUpdate);
+conn.ev.on('creds.update', conn.credsUpdate);
 
-conn.ev.on('messages.upsert', conn.handler)
-conn.ev.on('connection.update', conn.connectionUpdate)
-conn.ev.on('creds.update', conn.credsUpdate)
-isInit = false
-return true
-}
+isInit = false;
+return true;
+};
 
 const pluginFolder = global.__dirname(join(__dirname, './plugins/index'))
 const pluginFilter = (filename) => /\.js$/.test(filename)
@@ -433,44 +403,44 @@ unlinkSync(filePath)})
 }
 function purgeSession() {
 let prekey = []
-let directorio = readdirSync("./MorchiSession")
+let directorio = readdirSync(`./${global.authFile}`)
 let filesFolderPreKeys = directorio.filter(file => {
 return file.startsWith('pre-key-')
 })
 prekey = [...prekey, ...filesFolderPreKeys]
 filesFolderPreKeys.forEach(files => {
-unlinkSync(`./MorchiSession/${files}`)
+unlinkSync(`./${global.authFile}/${files}`)
 })
 } 
 function purgeSessionSB() {
 try {
-const listaDirectorios = readdirSync(`./${authFileJB}/`);
+const listaDirectorios = readdirSync(`./${global.authFileJB}/`);
 let SBprekey = [];
 listaDirectorios.forEach(directorio => {
-if (statSync(`./${authFileJB}/${directorio}`).isDirectory()) {
-const DSBPreKeys = readdirSync(`./${authFileJB}/${directorio}`).filter(fileInDir => {
+if (statSync(`./${global.authFileJB}/${directorio}`).isDirectory()) {
+const DSBPreKeys = readdirSync(`./${global.authFileJB}/${directorio}`).filter(fileInDir => {
 return fileInDir.startsWith('pre-key-')
 })
 SBprekey = [...SBprekey, ...DSBPreKeys];
 DSBPreKeys.forEach(fileInDir => {
-if (fileInDir !== 'creds.json') {
-unlinkSync(`./${authFileJB}/${directorio}/${fileInDir}`)
+if (fileInDir !== global.creds) {
+unlinkSync(`./${global.authFileJB}/${directorio}/${fileInDir}`)
 }})
 }})
 if (SBprekey.length === 0) {
-console.log(chalk.bold.green(`\n╭» 🟡 MorchiJadiBot 🟡\n│→ NADA POR ELIMINAR \n╰― ― ― ― ― ― ― ― ― ― ― ― ― ― ― ― ― ― ― 🗑️♻️`))
+console.log(chalk.bold.green(`\n╭» 🟡 ${global.authFileJB} 🟡\n│→ NADA POR ELIMINAR \n╰― ― ― ― ― ― ― ― ― ― ― ― ― ― ― ― ― ― ― 🗑️♻️`))
 } else {
-console.log(chalk.bold.cyanBright(`\n╭» ⚪ MorchiJadiBot ⚪\n│→ ARCHIVOS NO ESENCIALES ELIMINADOS\n╰― ― ― ― ― ― ― ― ― ― ― ― ― ― ― ― ― ― ― 🗑️♻️`))
+console.log(chalk.bold.cyanBright(`\n╭» ⚪ ${global.authFileJB} ⚪\n│→ ARCHIVOS NO ESENCIALES ELIMINADOS\n╰― ― ― ― ― ― ― ― ― ― ― ― ― ― ― ― ― ― ― 🗑️♻️`))
 }} catch (err) {
-console.log(chalk.bold.red(`\n╭» 🔴 MorchiJadiBot 🔴\n│→ OCURRIÓ UN ERROR\n╰― ― ― ― ― ― ― ― ― ― ― ― ― ― ― ― ― ― ― 🗑️♻️\n` + err))
+console.log(chalk.bold.red(`\n╭» 🔴 ${global.authFileJB} 🔴\n│→ OCURRIÓ UN ERROR\n╰― ― ― ― ― ― ― ― ― ― ― ― ― ― ― ― ― ― ― 🗑️♻️\n` + err))
 }}
 function purgeOldFiles() {
-const directories = ['./MorchiSession/', './MorchiJadiBot/']
+const directories = [`./${global.authFile}/`, `./${authFileJB}/`]
 directories.forEach(dir => {
 readdirSync(dir, (err, files) => {
 if (err) throw err
 files.forEach(file => {
-if (file !== 'creds.json') {
+if (file !== global.creds) {
 const filePath = path.join(dir, file);
 unlinkSync(filePath, err => {
 if (err) {
