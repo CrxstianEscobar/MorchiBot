@@ -134,7 +134,7 @@ rl.clearLine(rl.input, 0)
 resolver(respuesta.trim())
 })})
 }
-/*
+
 let opcion
 if (methodCodeQR) {
 opcion = '1'
@@ -180,7 +180,7 @@ browser: opcion == '1' ? ['MorchiBot-MD', 'Edge', '20.0.04'] : methodCodeQR ? ['
 auth: {
 creds: state.creds,
 keys: makeCacheableSignalKeyStore(state.keys, Pino({ level: "fatal" }).child({ level: "fatal" })),
-},*/
+},
 markOnlineOnConnect: true, 
 generateHighQualityLinkPreview: true, 
 syncFullHistory: false,
